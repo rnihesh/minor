@@ -1,0 +1,38 @@
+VNR VIGNANA JYOTHI INSTITUTE OF ENGINEERING & TECHNOLOGY 
+(AN AUTONOMOUS INSTITUTION) 
+ 
+DEPARTMENT OF INFORMATION TECHNOLOGY 
+                  Letter of acceptance for UG / PG Mini Projects 
+Name of the Department:  INFORMATION TECHNOLOGY  ROLL NUMBERS 
+Name of the Guide:   1.  M. Vaishnavi (23071A1238) 
+Project Title: Speech Emotion Recognition Using CNN–
+LSTM for Mental Health Monitoring  2.  R. Nihesh (23071A1250) 
+Section: A  3.  R. Laxmi Prasanna (23071A1253) 
+Submission Date:   4.  R. Sri Koushik (23071A1254) 
+Project Abstract: 
+This project focuses on automatic recognition of human emotions from speech signals using deep 
+learning techniques. A hybrid CNN-LSTM model is used to extract spatial and temporal features 
+from audio signals. Speech features such as MFCCs are extracted and processed using CNN for 
+feature learning and LSTM for sequence modeling. The model is trained on the RAVDESS dataset 
+to classify emotions like happy, sad, angry, calm, and neutral. The system aims to support mental 
+health monitoring by identifying emotional patterns from speech in an automated and non-intrusive 
+manner.  
+Problem Definition: 
+Mental  health  conditions  often  influence  speech  and  emotional  expression.  Manual  emotion 
+assessment is subjective and not scalable. The problem is to design an automated system that 
+accurately identifies emotions from speech signals using deep learning models for effective mental 
+health monitoring. 
+ 
+Requirements: 
+Hardware: PC/Laptop with minimum 8GB RAM 
+Software: Python, TensorFlow/Keras, Librosa, NumPy, Scikit-learn 
+Dataset: RAVDESS Emotional Speech Dataset 
+ 
+Future Expansion of the Project: 
+  Real-time emotion detection from live speech 
+  Multilingual emotion recognition 
+  Integration with web or mobile mental health applications 
+  Multimodal emotion analysis using speech and facial expressions 
+ 
+Modifications / Suggestions given ( if any): 
+Signature of HOD:   Signature of the Project Mentor 
