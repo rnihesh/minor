@@ -1,0 +1,5 @@
+archive/
+.venv/
+__pycacehe__/
+src/__pycache__/
+.DS_Store

@@ -1,0 +1,12 @@
+# For pip users (not recommended, use uv sync instead)
+# Note: Requires Python 3.11-3.12 for Metal GPU support
+tensorflow-macos>=2.14.0
+tensorflow-metal>=1.1.0
+librosa>=0.10.0
+numpy<2.0
+pandas
+scikit-learn
+matplotlib
+seaborn
+soundfile
+tqdm
