@@ -4,7 +4,7 @@ import os
 import numpy as np
 from tensorflow.keras.models import load_model
 
-from src.config import MODEL_PATH, EMOTIONS
+from src.config import CANONICAL_EMOTIONS, FeatureConfig, MODEL_PATH
 from src.feature_extraction import extract_features
 
 
@@ -23,7 +23,33 @@ class EmotionPredictor:
 
         print(f"Loading model from: {model_path}")
         self.model = load_model(model_path)
-        self.emotion_names = [EMOTIONS[f'{i+1:02d}'] for i in range(len(EMOTIONS))]
+        self.emotion_names = list(CANONICAL_EMOTIONS)
+        self.feature_config = self._infer_feature_config()
+
+    def _infer_feature_config(self) -> FeatureConfig:
+        """
+        Infer feature configuration from model input dimensions.
+
+        Legacy MFCC models use 40 feature bins. Robust models use a larger
+        stacked feature bundle.
+        """
+        feature_bins = int(self.model.input_shape[-1])
+        if feature_bins == 40:
+            return FeatureConfig(
+                include_delta=False,
+                include_delta2=False,
+                include_logmel=False,
+                include_zcr=False,
+                normalize_per_sample=False,
+            )
+        return FeatureConfig(
+            include_mfcc=True,
+            include_delta=True,
+            include_delta2=True,
+            include_logmel=True,
+            include_zcr=True,
+            normalize_per_sample=True,
+        )
 
     def _find_best_model(self) -> str:
         """Find the best saved model."""
@@ -54,7 +80,7 @@ class EmotionPredictor:
             raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
         # Extract features
-        features = extract_features(audio_path)
+        features = extract_features(audio_path, feature_config=self.feature_config)
 
         # Add batch dimension
         features = np.expand_dims(features, axis=0)

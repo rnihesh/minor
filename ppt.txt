@@ -1,0 +1,449 @@
+ Speech Emotion Recognition Using CNN LSTM for
+Mental Health Monitoring
+UNDER THE GUIDANCE OF DR. D. SRINIVASA RAO
+Project Team Members:
+M. Vaishnavi (23071A1238)
+R. Nihesh (23071A1250)
+R. Laxmi Prasanna(23071A1253)
+R. Sri Koushik(23071A1254)
+Contents
+► Abstract
+► Introduction
+► Literature Survey
+► Existing System Drawbacks
+► Methodology
+► References
+Abstract
+● The project aims to develop an automatic emotion recognition system from
+speech signals using deep learning techniques.
+● A hybrid CNN–LSTM architecture is employed to capture both spatial and
+temporal features from the audio data.
+● Mel Frequency Cepstral Coefficients (MFCCs) are extracted from speech
+signals and the model is trained using the RAVDESS emotional speech
+dataset.
+● The system classifies emotions such as happy, sad, angry, calm, and neutral,
+supporting automated and non-intrusive mental health monitoring.
+Introduction
+• Human emotions play an important role in communication and are often
+reflected in speech through variations in tone, pitch, and intensity.
+• Speech Emotion Recognition (SER) is a field that focuses on automatically
+identifying emotions from speech signals using computational techniques.
+• With the advancement of Artificial Intelligence and Deep Learning, it has
+become possible to analyze speech patterns and detect emotional states
+more accurately.
+• This project aims to develop an automated emotion recognition system using a
+hybrid CNN–LSTM model to classify emotions from speech signals, which can
+support applications such as mental health monitoring and human–computer
+interaction.
+Literature Survey
+S.NO Author and
+Date
+Title What they
+did
+Methodology Drawbacks Conclusion
+1. Qianhe
+Quyang(2025)
+Speech
+Emotion
+Detection based
+on MFCC and
+CNN-LSTM
+Architecture
+Proposed deep
+learning
+models for
+detecting
+emotions from
+speech signals
+Extracted MFCC
+features from
+speech audio and
+used as hybrid
+CNN-LSTM
+model for
+classification
+Accuracy varies
+for difference
+emotions and
+performance.
+Hybrid CNN-LSTM
+architecture achieved
+around 61% accuracy.
+2. Beenaa Salian,
+Omkar
+Narvade,Rujuta
+Tambewagh,,
+and Smita
+Bharne(2021)
+Speech
+Emotion
+Recognition
+Using Time
+Distributed
+CNN and
+LSTM.
+Developed a
+deep learning
+model for
+emotion
+classification.
+Used CNN layers
+to extract special
+features and
+LSTM to capture
+temporal
+dependencies in
+audio sequences.
+Requires large
+dataset and high
+training time
+CNN-LSTM
+architecture improves
+emotion classification
+compared to
+traditional ML
+techniques.
+S.NO Author and
+Date
+Title What they did Methodology Drawbacks Conclusion
+3. Jianfeng
+Zhao,Xia Mao,
+Lijiang
+Chen(2018)
+Speech Emotion
+Recognition
+Using Deep 1D
+& 2D
+CNN-LSTM
+Networks
+Investigated
+deep neural
+networks to
+learn emotional
+patterns from
+speech signals
+Proposed two
+architectures 1D
+and 2D using
+spectogram
+features/
+Deep Learning
+models acts as
+black-box systems
+and requires
+significant training
+data
+CNN-LSTM networks
+effectively capture
+both spatial and
+temporal speech
+features.
+4. Rizwan Ullah,
+Muhammad
+Asif, Wahab Ali
+Shah, Fakhar
+Anjam, Ibrar
+Ullah, Tahir
+Khurshaid,
+Lunchakorn
+Wuttisititikulkij,
+Shashi Shah,
+Syed Mansoor
+Ali, Mohammad
+Alibakhshikenar
+i(2023)
+Speech Emotion
+Recognition
+USing CNN and
+Multi-head
+convolutional
+Transformer
+Explored
+CNN-based
+methods for
+speech emotion
+recognition and
+human-machin
+e interaction
+Used spectrogram
+and acoustic
+features with deep
+CNN architecture
+for emotion
+classification
+Performance
+affected by noisy
+spech and speaker
+variations.
+CNN models achieved
+high accuracy for
+recognizing emotional
+states in speech signals
+S.NO Author and
+Date
+Title What they did Methodology Drawbacks Conclusion
+5. Samaneh
+Madanian, Talen
+Chen, Olayinka
+Adeleye, John
+Michael
+Templeton,
+Christian
+Poellabauer,
+Dave Parry,
+Sandra L.
+Schneider(2023)
+Speech Emotion
+Recognition
+Using Machine
+Learning – A
+Review
+Presented a
+comprehensive
+survey of
+speech emotion
+recognition
+methods.
+Compared machine
+learning techniques
+such as SVM,
+HMM, GMM and
+deep learning
+methods like CNN
+and LSTM.
+Many systems fail
+to generalize to
+real-world
+environments.
+Deep learning models
+outperform traditional
+machine learning
+approaches in SER.
+6. Jamsher
+Bhanbhro, Asif
+Aziz Memon,
+Bharat Lal,
+Shahnawaz
+Talpur, Madeha
+Memon(2025)
+Speech Emotion
+Recognition:
+Comparative
+Analysis of
+CNN-LSTM and
+Attention-Enhan
+ced CNN-LSTM
+Models
+Compared
+standard
+CNN-LSTM
+and
+attention-enhan
+ced
+CNN-LSTM
+models for
+emotion
+detection.
+Used CNN for
+feature extraction
+and LSTM with
+attention
+mechanism for
+sequence learning.
+Attention models
+increase
+computational
+complexity.
+Attention-based
+CNN-LSTM achieved
+higher accuracy and
+better feature learning.
+S.NO Author and
+Date
+Title What they did Methodology Drawbacks Conclusion
+7. C. S. Ayush
+Kumar, Advaith
+Das Maharana,
+Srinath Murali
+Krishnan,
+Sannidhi Sri Sai
+Hanuma(2023)
+Speech Emotion
+Recognition
+Using
+CNN-LSTM and
+Vision
+Transformer
+Compared
+CNN-LSTM
+with Vision
+Transformer
+models for
+emotion
+classification.
+Used
+Mel-spectrogram
+features with
+CNN-LSTM and
+Vision Transformer
+architectures.
+Transformer models
+require large
+datasets and
+computational
+resources.
+CNN-LSTM achieved
+around 88.5%
+accuracy, slightly
+outperforming Vision
+Transformer.
+8. Fazliddin
+Makhmudov,
+Alpamis
+Kutlimuratov,
+Young-Im
+Cho(2024)
+Hybrid
+LSTM-Attention
+and CNN Model
+for Enhanced
+Speech Emotion
+Recognition
+Proposed an
+advanced hybrid
+deep learning
+architecture for
+SER.
+Combined CNN
+feature extraction
+with LSTM and
+attention
+mechanisms using
+acoustic features
+such as MFCC and
+ZCR.
+Complex
+architecture
+increases training
+time and
+computational cost.
+Hybrid
+CNN-LSTM-Attention
+models improve
+emotion recognition
+performance.
+S.NO Author and
+Date
+Title What they did Methodology Drawbacks Conclusion
+9. Mansi
+Dhavale,Sheetal
+U.
+Bhandari(2022)
+Speech Emotion
+Recognition
+Using CNN and
+LSTM
+Proposed a deep
+learning system
+to classify
+emotional states
+from speech
+signals.
+Extracted acoustic
+features and used
+CNN for spatial
+learning and LSTM
+for temporal
+sequence modeling.
+Model performance
+depends heavily on
+dataset size and
+quality.
+CNN-LSTM models
+provide better
+accuracy than
+traditional ML
+approaches.
+10. HyeYoung Lee,
+Muhammad
+Nadeem(2025)
+Toward Efficient
+Speech Emotion
+Recognition via
+Spectral
+Learning and
+Attention
+Proposed an
+improved
+speech emotion
+recognition
+system to detect
+emotions from
+speech signals
+using spectral
+features and
+attention
+mechanisms.
+Extracted MFCC
+features and used a
+1D-CNN with
+attention
+mechanisms to
+capture emotional
+patterns in speech,
+evaluated on
+RAVDESS,
+SAVEE,
+CREMA-D, and
+TESS datasets.
+High computational
+complexity and
+requires large
+datasets for training
+and generalization.
+The proposed
+attention-based CNN
+model significantly
+improved emotion
+recognition accuracy
+across multiple
+datasets.
+Existing System Drawbacks
+• Manual emotion assessment is subjective and depends on human
+interpretation.
+• Traditional systems rely on basic machine learning methods, which have limited
+accuracy in detecting emotions.
+• Many existing approaches fail to capture temporal patterns in speech signals
+effectively.
+• The systems are not scalable and require significant human effort for analysis.
+Speech Input (RAVDESS Dataset)
+ ↓
+Audio Preprocessing
+ ↓
+Feature Extraction (MFCC using Librosa)
+ ↓
+CNN Model (Spatial Feature Learning)
+ ↓
+LSTM Model (Temporal Sequence Modeling)
+ ↓
+Emotion Classification Layer
+ ↓
+Detected Emotion Output
+(Happy / Sad / Angry / Calm / Neutral)
+Methodology
+References
+• https://www.researchgate.net/publication/369578559_Speech_Emoti
+on_Recognition_Using_CNN-LSTM_and_Vision_Transformer
+• https://www.mdpi.com/2076-3417/14/23/11342
+• https://www.mdpi.com/1424-8220/23/13/6212
+• https://www.researchgate.net/publication/367200907_Speech_Emoti
+on_Recognition_Using_CNN_and_LSTM
+• https://arxiv.org/abs/2501.10666
+• https://www.itm-conferences.org/articles/itmconf/pdf/2021/05/itmco
+nf_icacc2021_03006.pdf
+• https://www.sciencedirect.com/science/article/abs/pii/S1746809418
+302337
+• https://www.sciencedirect.com/science/article/pii/S26673053230009
+11
+• https://www.mdpi.com/2624-6120/6/2/22
+• https://arxiv.org/abs/2507.03251

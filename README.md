@@ -1,160 +1,161 @@
-# Speech Emotion Recognition Using CNN-LSTM
+# Robustness-First Speech Emotion Recognition
 
-A deep learning system for recognizing human emotions from speech audio using a hybrid CNN-LSTM architecture, trained on the RAVDESS dataset. Optimized for Apple Silicon (M4 Pro) with Metal GPU acceleration.
+Speech Emotion Recognition (SER) project using TensorFlow with:
 
-## Overview
+- multi-dataset ingestion (`RAVDESS`, `CREMA-D`, `TESS`, `SAVEE`)
+- dual evaluation protocol (`random_stratified` + `speaker_independent`)
+- configurable feature bundles (MFCC-only or robust stacked features)
+- model suite (`baseline`, `attention`, `lightweight`)
+- benchmark reporting against top-6 literature references
 
-This project implements an 8-class emotion classifier that can recognize:
-- Neutral, Calm, Happy, Sad, Angry, Fearful, Disgust, Surprised
+## Key Upgrades
 
-## Project Structure
-
-```
-minor/
-├── archive/                    # RAVDESS dataset
-│   └── Actor_01/ ... Actor_24/
-├── src/
-│   ├── __init__.py
-│   ├── config.py              # Hyperparameters & paths
-│   ├── data_loader.py         # Load & preprocess dataset
-│   ├── feature_extraction.py  # MFCC extraction with Librosa
-│   ├── model.py               # CNN-LSTM architecture
-│   ├── train.py               # Training pipeline
-│   ├── evaluate.py            # Metrics & visualization
-│   └── predict.py             # Inference on new audio
-├── models/                    # Saved trained models
-├── outputs/                   # Training logs, plots
-├── requirements.txt
-├── main.py                    # Entry point
-└── README.md
-```
+- Unified metadata schema for all datasets:
+  - `dataset_id`, `speaker_id`, `emotion_id`, `sr`, `duration`, `path`
+- Dual protocol split engine:
+  - `random`: paper-style random stratified split
+  - `speaker`: strict speaker-held-out split
+  - `dual`: runs both
+- Robust feature pipeline:
+  - MFCC + delta + delta-delta + log-mel + ZCR
+  - optional waveform augmentation (noise/shift/speed/pitch)
+  - optional SpecAugment masks
+- Benchmark report generator:
+  - per-protocol metrics
+  - per-dataset metrics
+  - macro-F1, weighted F1, UAR
+  - drawback-mitigation table mapped to papers #1-#6
 
 ## Installation
 
-### Using uv (recommended)
-
 ```bash
-# Sync dependencies (creates venv automatically)
 uv sync
-
-# Verify Metal GPU
 uv run python main.py verify-gpu
 ```
 
-Expected output:
-```
-TensorFlow version: 2.x.x
-Physical devices:
-  CPU: /physical_device:CPU:0
-  GPU: /physical_device:GPU:0
-Metal GPU acceleration: ENABLED (1 GPU(s))
-```
+## CLI
 
-## Usage
-
-### Train Model
+### 1) Download open dataset pack
 
 ```bash
-uv run python main.py train
+uv run python main.py download-datasets --pack open4
 ```
 
-With custom parameters:
+If a dataset cannot be downloaded automatically, the command prints manual placement instructions.
+
+### 2) Train
+
 ```bash
-uv run python main.py train --epochs 50 --batch-size 16
+uv run python main.py train \
+  --datasets ravdess,crema_d,tess,savee \
+  --protocol dual \
+  --model-variant attention \
+  --feature-bundle robust \
+  --epochs 30 --batch-size 32 --use-focal-loss
 ```
 
-### Evaluate Model
+Quick smoke run:
+
+```bash
+uv run python main.py train \
+  --datasets ravdess \
+  --protocol random \
+  --model-variant lightweight \
+  --feature-bundle mfcc \
+  --epochs 1 --batch-size 16 --no-augmentation
+```
+
+### 3) Evaluate
 
 ```bash
 uv run python main.py evaluate
 ```
 
-With specific model:
-```bash
-uv run python main.py evaluate --model models/emotion_cnn_lstm_best.keras
-```
-
-### Predict Emotion
+Multi-dataset evaluation:
 
 ```bash
-uv run python main.py predict --audio archive/Actor_01/03-01-01-01-01-01-01.wav
+uv run python main.py evaluate \
+  --datasets ravdess,crema_d,tess,savee \
+  --protocol speaker
 ```
 
-Output:
-```
-Predicted: neutral (confidence: 87.3%)
+### 4) Benchmark vs first 6 papers
 
-All probabilities:
-  neutral    ██████████████████████████░░░░  87.3%
-  calm       ███░░░░░░░░░░░░░░░░░░░░░░░░░░░   5.2%
-  ...
+Using an existing run:
+
+```bash
+uv run python main.py benchmark --papers first6 --run-id <run_id>
 ```
 
-## Model Architecture
+Auto-train if no run is found:
 
-### CNN-LSTM Hybrid
-
-```
-Input: (130, 40) - MFCC sequences
-
-CNN Block (Spatial Features):
-├── Conv1D(64, kernel=5) + BatchNorm + ReLU + MaxPool
-├── Conv1D(128, kernel=5) + BatchNorm + ReLU + MaxPool
-└── Conv1D(256, kernel=3) + BatchNorm + ReLU + MaxPool
-
-LSTM Block (Temporal Features):
-├── LSTM(128, return_sequences=True) + Dropout(0.3)
-└── LSTM(64) + Dropout(0.3)
-
-Classification:
-├── Dense(64, relu) + Dropout(0.4)
-└── Dense(8, softmax)
-
-Output: 8 emotion probabilities
+```bash
+uv run python main.py benchmark \
+  --papers first6 \
+  --protocol dual \
+  --train-if-missing \
+  --datasets ravdess,crema_d,tess,savee \
+  --model-variant attention \
+  --feature-bundle robust
 ```
 
-## Dataset
+Outputs are written to:
 
-**RAVDESS** - Ryerson Audio-Visual Database of Emotional Speech and Song
+- `outputs/reports/*.md`
+- `outputs/reports/*.json`
 
-- 1440 audio files
-- 24 professional actors (12 male, 12 female)
-- 8 emotional expressions
-- 16-bit, 48kHz audio (resampled to 22050Hz)
+### 5) Predict
 
-### Filename Format
+```bash
+uv run python main.py predict --audio /path/to/sample.wav
+```
 
-`03-01-06-01-02-01-12.wav`
+`predict` auto-detects feature mode from the loaded model input shape (legacy MFCC or robust bundle).
 
-| Position | Meaning | Values |
-|----------|---------|--------|
-| 1 | Modality | 03 = audio-only |
-| 2 | Vocal | 01 = speech |
-| 3 | Emotion | 01-08 |
-| 4 | Intensity | 01=normal, 02=strong |
-| 5 | Statement | 01="Kids...", 02="Dogs..." |
-| 6 | Repetition | 01=1st, 02=2nd |
-| 7 | Actor | 01-24 |
+## Model Variants
 
-## Expected Results
+- `baseline`: CNN-LSTM
+- `attention`: CNN + BiLSTM + MultiHeadAttention
+- `lightweight`: SeparableConv1D + compact LSTM stack
 
-- **Training time**: ~10-15 minutes on M4 Pro (Metal)
-- **Expected accuracy**: 70-85%
-- **Model size**: ~5-10 MB
+## Testing
 
-## Output Files
+Run full tests (includes 1-epoch dual-protocol smoke training on synthetic mini data):
 
-After training:
-- `models/emotion_cnn_lstm_<timestamp>_best.keras` - Best model
-- `models/emotion_cnn_lstm_<timestamp>_final.keras` - Final model
-- `outputs/confusion_matrix.png` - Confusion matrix visualization
-- `outputs/training_history.png` - Training curves
-- `outputs/per_class_metrics.png` - Per-class performance
+```bash
+uv run --with pytest python -m pytest -q
+```
 
-## Citation
+Current test coverage includes:
 
-> Livingstone SR, Russo FA (2018) The Ryerson Audio-Visual Database of Emotional Speech and Song (RAVDESS): A dynamic, multimodal set of facial and vocal expressions in North American English. PLoS ONE 13(5): e0196391. https://doi.org/10.1371/journal.pone.0196391
+- unified metadata/schema integrity
+- speaker overlap checks for `speaker_independent` splits
+- feature shape and NaN safety
+- one-epoch smoke training for both protocols
+- deterministic benchmark report rendering
 
-## License
+## Core Files
 
-This project is for educational purposes. The RAVDESS dataset is licensed under Creative Commons BY-NC-SA 4.0.
+- `src/config.py`: global config + dataclasses for feature/split/train/augmentation
+- `src/datasets.py`: unified dataset scanners and metadata validation
+- `src/splits.py`: random + speaker-independent split strategies
+- `src/feature_extraction.py`: robust feature extraction and augmentations
+- `src/model.py`: baseline/attention/lightweight model builders
+- `src/train.py`: training pipeline + run summaries
+- `src/evaluate.py`: metrics, confusion matrix, per-dataset evaluation
+- `src/benchmark.py`: paper comparison and report generation
+- `src/download_datasets.py`: open4 dataset download helper
+
+## Literature Set Used in Benchmark
+
+1. Ouyang (2025) - arXiv: https://arxiv.org/abs/2501.10666
+2. Salian et al. (2021) - DOI: https://doi.org/10.1051/itmconf/20214003006
+3. Zhao et al. (2018) - DOI: https://doi.org/10.1016/j.neucom.2017.10.005
+4. Ullah et al. (2023) - DOI: https://doi.org/10.3390/s23136212
+5. Madanian et al. (2023) - ScienceDirect: https://www.sciencedirect.com/science/article/pii/S2667305323000911
+6. Bhanbhro et al. (2025) - DOI: https://doi.org/10.3390/signals6020022
+
+## Notes
+
+- Legacy RAVDESS-only APIs are still preserved for compatibility (`prepare_data`, `create_cnn_lstm_model`).
+- Existing `archive/Actor_*` RAVDESS structure is still supported.
