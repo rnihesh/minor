@@ -4,8 +4,9 @@ import os
 import numpy as np
 from tensorflow.keras.models import load_model
 
-from src.config import CANONICAL_EMOTIONS, FeatureConfig, MODEL_PATH
+from src.config import CANONICAL_EMOTIONS, FeatureConfig
 from src.feature_extraction import extract_features
+from src.model_selection import find_best_model_path
 
 
 class EmotionPredictor:
@@ -53,18 +54,7 @@ class EmotionPredictor:
 
     def _find_best_model(self) -> str:
         """Find the best saved model."""
-        if not os.path.exists(MODEL_PATH):
-            raise FileNotFoundError(f"Model directory not found: {MODEL_PATH}")
-
-        # Look for best model first
-        model_files = [f for f in os.listdir(MODEL_PATH) if f.endswith('_best.keras')]
-        if not model_files:
-            model_files = [f for f in os.listdir(MODEL_PATH) if f.endswith('.keras')]
-
-        if not model_files:
-            raise FileNotFoundError(f"No model found in {MODEL_PATH}")
-
-        return os.path.join(MODEL_PATH, sorted(model_files)[-1])
+        return find_best_model_path()
 
     def predict(self, audio_path: str) -> dict:
         """

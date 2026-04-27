@@ -18,18 +18,50 @@ from sklearn.metrics import (
 )
 from tensorflow.keras.models import Model, load_model
 
-from src.config import CANONICAL_EMOTIONS, MODEL_PATH, OUTPUT_PATH
+from src.config import CANONICAL_EMOTIONS, OUTPUT_PATH
 from src.data_loader import prepare_data, prepare_multidataset_data
+from src.model_selection import find_best_model_path, find_best_model_record
 
 
 def compute_classification_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
     """Compute weighted and macro classification metrics."""
+    labels = list(range(len(CANONICAL_EMOTIONS)))
     accuracy = accuracy_score(y_true, y_pred)
-    precision_w = precision_score(y_true, y_pred, average="weighted", zero_division=0)
-    recall_w = recall_score(y_true, y_pred, average="weighted", zero_division=0)
-    f1_w = f1_score(y_true, y_pred, average="weighted", zero_division=0)
-    f1_macro = f1_score(y_true, y_pred, average="macro", zero_division=0)
-    uar = recall_score(y_true, y_pred, average="macro", zero_division=0)
+    precision_w = precision_score(
+        y_true,
+        y_pred,
+        labels=labels,
+        average="weighted",
+        zero_division=0,
+    )
+    recall_w = recall_score(
+        y_true,
+        y_pred,
+        labels=labels,
+        average="weighted",
+        zero_division=0,
+    )
+    f1_w = f1_score(
+        y_true,
+        y_pred,
+        labels=labels,
+        average="weighted",
+        zero_division=0,
+    )
+    f1_macro = f1_score(
+        y_true,
+        y_pred,
+        labels=labels,
+        average="macro",
+        zero_division=0,
+    )
+    uar = recall_score(
+        y_true,
+        y_pred,
+        labels=labels,
+        average="macro",
+        zero_division=0,
+    )
 
     return {
         "accuracy": float(accuracy),
@@ -203,9 +235,28 @@ def plot_per_class_metrics(
     if save_path is None:
         save_path = os.path.join(OUTPUT_PATH, "per_class_metrics.png")
 
-    precision = precision_score(y_true, y_pred, average=None, zero_division=0)
-    recall = recall_score(y_true, y_pred, average=None, zero_division=0)
-    f1 = f1_score(y_true, y_pred, average=None, zero_division=0)
+    labels = list(range(len(CANONICAL_EMOTIONS)))
+    precision = precision_score(
+        y_true,
+        y_pred,
+        labels=labels,
+        average=None,
+        zero_division=0,
+    )
+    recall = recall_score(
+        y_true,
+        y_pred,
+        labels=labels,
+        average=None,
+        zero_division=0,
+    )
+    f1 = f1_score(
+        y_true,
+        y_pred,
+        labels=labels,
+        average=None,
+        zero_division=0,
+    )
 
     x = np.arange(len(CANONICAL_EMOTIONS))
     width = 0.25
@@ -235,13 +286,28 @@ def run_evaluation(
     protocol: str = "random",
 ) -> dict:
     """Run default evaluation workflow."""
+    selected_protocol_name = None
     if model_path is None:
-        model_files = [f for f in os.listdir(MODEL_PATH) if f.endswith("_best.keras")]
-        if not model_files:
-            model_files = [f for f in os.listdir(MODEL_PATH) if f.endswith(".keras")]
-        if not model_files:
-            raise FileNotFoundError(f"No model found in {MODEL_PATH}")
-        model_path = os.path.join(MODEL_PATH, sorted(model_files)[-1])
+        requested_datasets = list(datasets) if datasets is not None else None
+        record = find_best_model_record(
+            prefer_protocol=protocol,
+            datasets=requested_datasets,
+        )
+        if record is not None:
+            model_path = record.model_path
+            selected_protocol_name = record.protocol_name
+            if datasets is None and record.datasets:
+                datasets = record.datasets
+                protocol = (
+                    "speaker"
+                    if record.protocol_name == "speaker_independent"
+                    else "random"
+                )
+        else:
+            model_path = find_best_model_path(
+                prefer_protocol=protocol,
+                datasets=requested_datasets,
+            )
 
     print(f"Loading model from: {model_path}")
     model = load_model(model_path)
@@ -252,7 +318,11 @@ def run_evaluation(
         return metrics
 
     prepared = prepare_multidataset_data(datasets=datasets, protocol=protocol)
-    first_key = sorted(prepared.keys())[0]
+    first_key = (
+        selected_protocol_name
+        if selected_protocol_name in prepared
+        else sorted(prepared.keys())[0]
+    )
     split = prepared[first_key]
 
     metrics = evaluate_model(
