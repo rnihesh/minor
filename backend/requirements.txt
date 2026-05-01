@@ -1,0 +1,12 @@
+# Backend dependencies
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+tensorflow>=2.14.0
+librosa>=0.10.0
+numpy<2.0
+soundfile
+motor>=3.3.0
+bcrypt>=4.0.0
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
