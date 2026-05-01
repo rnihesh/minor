@@ -1,0 +1,48 @@
+/* =========================================================================
+   WaveformVisualizer Component Styles
+   ========================================================================= */
+
+.waveform-visualizer {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 18px 20px 14px;
+}
+
+.waveform-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.waveform-play-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-smooth);
+}
+
+.waveform-play-btn:hover {
+  background: rgba(139, 92, 246, 0.25);
+  transform: scale(1.05);
+}
+
+.waveform-time {
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.waveform-container {
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}

@@ -1,0 +1,81 @@
+/* =========================================================================
+   SuggestionCards Component Styles
+   ========================================================================= */
+
+.suggestion-cards {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.suggestions-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 18px;
+}
+
+.suggestions-icon {
+  font-size: 1.3rem;
+}
+
+.cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.suggestion-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px 18px 24px;
+  border-radius: var(--radius-md) !important;
+  overflow: hidden;
+  cursor: default;
+  transition: all 0.3s var(--ease-smooth);
+  animation: slideInLeft 0.5s var(--ease-smooth) forwards;
+  opacity: 0;
+}
+
+.suggestion-card:hover {
+  background: var(--bg-card-hover);
+  transform: translateX(6px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Left accent bar */
+.card-accent-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--card-accent, var(--accent-purple));
+  border-radius: 0 4px 4px 0;
+  transition: width 0.3s var(--ease-smooth);
+}
+
+.suggestion-card:hover .card-accent-bar {
+  width: 6px;
+}
+
+.card-text {
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 480px) {
+  .suggestion-card {
+    padding: 14px 16px 14px 20px;
+  }
+  .card-text { font-size: 0.88rem; }
+}

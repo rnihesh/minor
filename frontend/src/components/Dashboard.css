@@ -1,0 +1,131 @@
+/* =========================================================================
+   Dashboard & Insights Styles
+   ========================================================================= */
+
+.dashboard-title {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 24px;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  padding: 40px;
+}
+
+/* ---------- History List ---------- */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.history-card {
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  gap: 16px;
+  border-radius: var(--radius-md) !important;
+  transition: transform 0.2s var(--ease-smooth);
+}
+
+.history-card:hover {
+  transform: translateX(4px);
+  background: var(--bg-card-hover);
+}
+
+.history-icon {
+  font-size: 1.8rem;
+}
+
+.history-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.history-emotion {
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: var(--text-primary);
+}
+
+.history-confidence {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.history-time {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+/* ---------- Insights ---------- */
+.insights-summary {
+  display: flex;
+  justify-content: space-around;
+  padding: 24px;
+  margin-bottom: 20px;
+  text-align: center;
+  border-radius: var(--radius-lg) !important;
+}
+
+.insight-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.insight-label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.insight-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.trend-improving { color: var(--accent-green); }
+.trend-worsening { color: var(--accent-red); }
+.trend-stable { color: var(--text-primary); }
+
+.suggestion-box {
+  padding: 20px;
+  margin-bottom: 20px;
+  border-left: 4px solid var(--accent-yellow);
+  border-radius: var(--radius-md) !important;
+}
+
+.suggestion-box h4 {
+  margin-bottom: 8px;
+  color: var(--accent-yellow);
+}
+
+.suggestion-box p {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.chart-container {
+  padding: 24px;
+  border-radius: var(--radius-lg) !important;
+}
+
+.chart-container h4 {
+  text-align: center;
+  margin-bottom: 16px;
+  color: var(--text-secondary);
+}
