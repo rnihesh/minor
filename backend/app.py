@@ -36,10 +36,41 @@ from auth import hash_password, verify_password, create_access_token, decode_acc
 from src.config import CANONICAL_EMOTIONS, FeatureConfig
 from src.feature_extraction import extract_features
 
-LIGHTWEIGHT_MODEL_PATH = PROJECT_ROOT / "models" / "ser_lightweight_20260425_235238_random_stratified_best.keras"
-ATTENTION_MODEL_PATH = PROJECT_ROOT / "models" / "ser_attention_20260425_235453_speaker_independent_best.keras"
+# ---------------------------------------------------------------------------
+# Model presets
+# ---------------------------------------------------------------------------
+PRESETS: dict[str, dict] = {
+    "current": {
+        "label": "Current (Mixed Protocol)",
+        "description": "Lightweight random-split + Attention speaker-independent",
+        "accuracy": "~66% RS / ~44% SI",
+        "lw_file": "ser_lightweight_20260425_235238_random_stratified_best.keras",
+        "at_file": "ser_attention_20260425_235453_speaker_independent_best.keras",
+        "lw_weight": 0.35,
+        "at_weight": 0.65,
+    },
+    "consistent": {
+        "label": "Consistent (Both Random Split)",
+        "description": "Both models same protocol — more balanced ensemble, ~66% accuracy",
+        "accuracy": "~66% RS",
+        "lw_file": "ser_lightweight_20260425_235238_random_stratified_best.keras",
+        "at_file": "ser_attention_20260426_004328_random_stratified_best.keras",
+        "lw_weight": 0.35,
+        "at_weight": 0.65,
+    },
+    "tess": {
+        "label": "TESS Best (Attention Only)",
+        "description": "Latest attention model only — 99.4% on TESS, best for clean audio",
+        "accuracy": "99.4% TESS / ~66% overall",
+        "lw_file": None,
+        "at_file": "ser_attention_20260426_004328_random_stratified_best.keras",
+        "lw_weight": 0.0,
+        "at_weight": 1.0,
+    },
+}
 
-_models: dict = {}
+_active_preset: str = "current"
+_all_models: dict = {}  # keyed by filename
 
 # ---------------------------------------------------------------------------
 # Lifespan — model loading deferred to worker process (post-fork).
@@ -58,14 +89,19 @@ async def lifespan(app: FastAPI):
     from tensorflow.keras.models import load_model
     from src.model import categorical_focal_loss
     custom_objects = {"loss_fn": categorical_focal_loss()}
-    print("[INFO] Loading models...")
-    _models["lightweight"] = load_model(LIGHTWEIGHT_MODEL_PATH, custom_objects=custom_objects)
-    _models["attention"]   = load_model(ATTENTION_MODEL_PATH,   custom_objects=custom_objects)
-    print("[INFO] Both models loaded ✓")
-    yield
 
-LIGHTWEIGHT_WEIGHT = 0.35
-ATTENTION_WEIGHT = 0.65
+    # Collect unique model files across all presets
+    files_to_load = {
+        p["lw_file"] for p in PRESETS.values() if p["lw_file"]
+    } | {p["at_file"] for p in PRESETS.values()}
+
+    print(f"[INFO] Loading {len(files_to_load)} model file(s)...")
+    for fname in files_to_load:
+        path = PROJECT_ROOT / "models" / fname
+        _all_models[fname] = load_model(path, custom_objects=custom_objects)
+        print(f"[INFO]   ✓ {fname}")
+    print("[INFO] All models loaded ✓")
+    yield
 
 EMOTION_SUGGESTIONS: dict[str, list[str]] = {
     "neutral": ["You seem balanced – keep it up!", "A good time to reflect on your goals"],
@@ -145,30 +181,31 @@ def _infer_feature_config(model) -> FeatureConfig:
     return FeatureConfig(include_mfcc=True, include_delta=True, include_delta2=True, include_logmel=True, include_zcr=True, normalize_per_sample=True)
 
 async def _process_audio_file(file_path: str):
-    lw_model = _models["lightweight"]
-    at_model = _models["attention"]
+    preset = PRESETS[_active_preset]
+    at_model = _all_models[preset["at_file"]]
+    lw_weight = preset["lw_weight"]
+    at_weight = preset["at_weight"]
 
-    lw_cfg = _infer_feature_config(lw_model)
     at_cfg = _infer_feature_config(at_model)
-
-    lw_features = extract_features(file_path, feature_config=lw_cfg)
-    at_features = extract_features(file_path, feature_config=at_cfg)
-
-    lw_features = np.expand_dims(lw_features, axis=0)
-    at_features = np.expand_dims(at_features, axis=0)
-
-    lw_probs = lw_model.predict(lw_features, verbose=0)[0]
+    at_features = np.expand_dims(extract_features(file_path, feature_config=at_cfg), axis=0)
     at_probs = at_model.predict(at_features, verbose=0)[0]
 
-    ensemble_probs = (LIGHTWEIGHT_WEIGHT * lw_probs) + (ATTENTION_WEIGHT * at_probs)
-    ensemble_probs = ensemble_probs / ensemble_probs.sum()
+    if preset["lw_file"] and lw_weight > 0:
+        lw_model = _all_models[preset["lw_file"]]
+        lw_cfg = _infer_feature_config(lw_model)
+        lw_features = np.expand_dims(extract_features(file_path, feature_config=lw_cfg), axis=0)
+        lw_probs = lw_model.predict(lw_features, verbose=0)[0]
+        ensemble_probs = (lw_weight * lw_probs) + (at_weight * at_probs)
+    else:
+        lw_probs = at_probs
+        ensemble_probs = at_probs.copy()
 
+    ensemble_probs = ensemble_probs / ensemble_probs.sum()
     predicted_idx = int(np.argmax(ensemble_probs))
     predicted_emotion = CANONICAL_EMOTIONS[predicted_idx]
     confidence = float(ensemble_probs[predicted_idx])
+    all_scores = {e: round(float(p), 4) for e, p in zip(CANONICAL_EMOTIONS, ensemble_probs)}
 
-    all_scores = {emotion: round(float(prob), 4) for emotion, prob in zip(CANONICAL_EMOTIONS, ensemble_probs)}
-    
     return predicted_emotion, confidence, all_scores, lw_probs, at_probs
 
 # ---------------------------------------------------------------------------
@@ -177,6 +214,34 @@ async def _process_audio_file(file_path: str):
 @app.get("/")
 async def root():
     return {"status": "ok", "message": "Speech Emotion API with MongoDB running."}
+
+
+# ---------------------------------------------------------------------------
+# Model config endpoints (no auth — settings page only)
+# ---------------------------------------------------------------------------
+@app.get("/config/model")
+async def get_model_config():
+    return {
+        "active": _active_preset,
+        "presets": {
+            k: {
+                "label": v["label"],
+                "description": v["description"],
+                "accuracy": v["accuracy"],
+                "lw_weight": v["lw_weight"],
+                "at_weight": v["at_weight"],
+            }
+            for k, v in PRESETS.items()
+        },
+    }
+
+@app.post("/config/model/{preset_name}")
+async def set_model_config(preset_name: str):
+    global _active_preset
+    if preset_name not in PRESETS:
+        raise HTTPException(status_code=404, detail=f"Unknown preset '{preset_name}'. Valid: {list(PRESETS)}")
+    _active_preset = preset_name
+    return {"active": _active_preset, "label": PRESETS[preset_name]["label"]}
 
 
 # ---------------------------------------------------------------------------
