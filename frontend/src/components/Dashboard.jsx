@@ -77,8 +77,10 @@ export default function Dashboard() {
   const [error,         setError]         = useState(null);
   const [isRecording,   setIsRecording]   = useState(false);
   const [recTime,       setRecTime]       = useState(0);
-  const [isStreaming,   setIsStreaming]    = useState(false);
-  const [streamEmotion, setStreamEmotion] = useState(null);
+  const [isStreaming,      setIsStreaming]      = useState(false);
+  const [streamEmotion,    setStreamEmotion]    = useState(null);
+  const [streamHistory,    setStreamHistory]    = useState([]);
+  const [streamReadings,   setStreamReadings]   = useState(0);
 
   const mediaRecRef  = useRef(null);
   const streamRef    = useRef(null);
@@ -124,22 +126,52 @@ export default function Dashboard() {
 
   const startStream = async () => {
     setError(null);
+    setStreamHistory([]);
+    setStreamReadings(0);
     try {
       const tokenQuery = user?.token ? `?token=${user.token}` : "";
-      const ws = new WebSocket(WS_URL + tokenQuery); wsRef.current = ws;
-      ws.onmessage = e => setStreamEmotion(JSON.parse(e.data));
+      const ws = new WebSocket(WS_URL + tokenQuery);
+      wsRef.current = ws;
+      ws.onmessage = e => {
+        const data = JSON.parse(e.data);
+        setStreamEmotion(data);
+        setStreamReadings(n => n + 1);
+        setStreamHistory(h => [...h.slice(-4), data]);
+      };
       ws.onerror = () => setError("WebSocket error — is backend running?");
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      const rec = new MediaRecorder(stream,{mimeType:"audio/webm"});
-      rec.ondataavailable = e => { if(e.data.size>0 && ws.readyState===1) ws.send(e.data); };
-      rec.start(3000); mediaRecRef.current = rec; setIsStreaming(true);
+      setIsStreaming(true);
+
+      // Restart recorder every 3s so each chunk is a complete, decodable webm file.
+      // Using start(3000) produces headerless fragments after the first chunk.
+      const recordChunk = () => {
+        if (!streamRef.current || wsRef.current?.readyState !== WebSocket.OPEN) return;
+        const chunks = [];
+        const rec = new MediaRecorder(stream, { mimeType: "audio/webm" });
+        mediaRecRef.current = rec;
+        rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+        rec.onstop = () => {
+          if (chunks.length > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(new Blob(chunks, { type: "audio/webm" }));
+          }
+          if (streamRef.current) recordChunk();
+        };
+        rec.start();
+        setTimeout(() => { if (rec.state === "recording") rec.stop(); }, 3000);
+      };
+
+      recordChunk();
     } catch { setError("Could not start stream."); }
   };
 
   const stopStream = () => {
-    mediaRecRef.current?.stop(); streamRef.current?.getTracks().forEach(t=>t.stop());
-    wsRef.current?.close(); setIsStreaming(false);
+    mediaRecRef.current?.stop();
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    wsRef.current?.close();
+    setIsStreaming(false);
   };
 
   const activeResult = isStreaming && streamEmotion
@@ -227,12 +259,33 @@ export default function Dashboard() {
             </PillBtn>
 
             {streamEmotion && (
-              <Card className="mt-3 p-3 text-center">
-                <p className="text-xs text-gray-400 mb-1">Latest result</p>
-                <p className="text-lg font-bold capitalize text-gray-900">{streamEmotion.emotion}</p>
-                <p className="text-xs font-semibold" style={{ color: "#8b5cf6" }}>
-                  {(streamEmotion.confidence * 100).toFixed(1)}%
-                </p>
+              <Card className="mt-3 p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-gray-400 font-semibold">Live result</p>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                    style={{ background: "#ede9fe", color: "#7c3aed" }}>
+                    {streamReadings} reading{streamReadings !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">{EMOJIS[streamEmotion.emotion] || "🎤"}</span>
+                  <div>
+                    <p className="text-sm font-bold capitalize text-gray-900">{streamEmotion.emotion}</p>
+                    <p className="text-xs font-semibold" style={{ color: "#8b5cf6" }}>
+                      {(streamEmotion.confidence * 100).toFixed(1)}% confidence
+                    </p>
+                  </div>
+                </div>
+                {streamHistory.length > 1 && (
+                  <div className="flex gap-1 flex-wrap mt-1">
+                    {streamHistory.slice(0, -1).map((h, i) => (
+                      <span key={i} className="text-xs px-2 py-0.5 rounded-full text-gray-500"
+                        style={{ background: "#f3f4f6" }}>
+                        {EMOJIS[h.emotion]} {h.emotion}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </Card>
             )}
           </div>

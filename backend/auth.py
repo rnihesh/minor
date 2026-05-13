@@ -5,7 +5,7 @@ import os
 from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 
 # ---------------------------------------------------------------------------
 # Config (override via env vars in production)
@@ -14,18 +14,22 @@ SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-me-in-production-super-secret-k
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 # ---------------------------------------------------------------------------
 # Password helpers
 # ---------------------------------------------------------------------------
 def hash_password(plain: str) -> str:
-    return pwd_context.hash(plain)
+    # bcrypt requires bytes
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(plain.encode('utf-8'), salt)
+    return hashed.decode('utf-8')
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    try:
+        return bcrypt.checkpw(plain.encode('utf-8'), hashed.encode('utf-8'))
+    except ValueError:
+        return False
 
 
 # ---------------------------------------------------------------------------

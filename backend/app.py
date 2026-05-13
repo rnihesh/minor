@@ -9,9 +9,11 @@ Added: JWT-based authentication (register / login).
 """
 
 import os
+import subprocess
 import sys
 import tempfile
 import traceback
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -21,30 +23,46 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-# Suppress noisy TensorFlow logs before importing TF
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 import numpy as np
 from fastapi import FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 import motor.motor_asyncio
 
-# Auth helpers
 from auth import hash_password, verify_password, create_access_token, decode_access_token
-
-# ---------------------------------------------------------------------------
-# Import project-local utilities
-# ---------------------------------------------------------------------------
 from src.config import CANONICAL_EMOTIONS, FeatureConfig
 from src.feature_extraction import extract_features
 
+LIGHTWEIGHT_MODEL_PATH = PROJECT_ROOT / "models" / "ser_lightweight_20260425_235238_random_stratified_best.keras"
+ATTENTION_MODEL_PATH = PROJECT_ROOT / "models" / "ser_attention_20260425_235453_speaker_independent_best.keras"
+
+_models: dict = {}
+
 # ---------------------------------------------------------------------------
-# App configuration
+# Lifespan — model loading deferred to worker process (post-fork).
+# Loading TF at module level + uvicorn reload=True forks after Metal init
+# → mutex lock crash on macOS. Lifespan runs inside the worker, never
+# in the reloader process.
 # ---------------------------------------------------------------------------
-LIGHTWEIGHT_MODEL_PATH = str(PROJECT_ROOT / "models" / "ser_lightweight_20260425_235238_random_stratified_best.keras")
-ATTENTION_MODEL_PATH = str(PROJECT_ROOT / "models" / "ser_attention_20260425_235453_speaker_independent_best.keras")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    import tensorflow as tf
+    try:
+        tf.config.set_visible_devices([], "GPU")
+        print("[INFO] Metal/GPU disabled for inference worker.")
+    except Exception:
+        pass
+    from tensorflow.keras.models import load_model
+    from src.model import categorical_focal_loss
+    custom_objects = {"loss_fn": categorical_focal_loss()}
+    print("[INFO] Loading models...")
+    _models["lightweight"] = load_model(LIGHTWEIGHT_MODEL_PATH, custom_objects=custom_objects)
+    _models["attention"]   = load_model(ATTENTION_MODEL_PATH,   custom_objects=custom_objects)
+    print("[INFO] Both models loaded ✓")
+    yield
 
 LIGHTWEIGHT_WEIGHT = 0.35
 ATTENTION_WEIGHT = 0.65
@@ -102,7 +120,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(b
 # ---------------------------------------------------------------------------
 # FastAPI app & CORS
 # ---------------------------------------------------------------------------
-app = FastAPI(title="Speech Emotion Recognition API (Extended)")
+app = FastAPI(title="Speech Emotion Recognition API (Extended)", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -112,23 +130,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------------------------------------------------------------------------
-# Model loading
-# ---------------------------------------------------------------------------
-_models: dict = {}
-
-def _load_models():
-    if _models:
-        return
-    from tensorflow.keras.models import load_model  # noqa: E402
-    from src.model import categorical_focal_loss  # noqa: E402
-
-    custom_objects = {"loss_fn": categorical_focal_loss()}
-
-    print(f"[INFO] Loading models...")
-    _models["lightweight"] = load_model(LIGHTWEIGHT_MODEL_PATH, custom_objects=custom_objects)
-    _models["attention"] = load_model(ATTENTION_MODEL_PATH, custom_objects=custom_objects)
-    print("[INFO] Both models loaded successfully ✓")
+def _webm_to_wav(webm_path: str) -> str:
+    wav_path = webm_path.replace(".webm", ".wav")
+    subprocess.run(
+        ["ffmpeg", "-y", "-i", webm_path, "-ar", "22050", "-ac", "1", "-f", "wav", wav_path],
+        capture_output=True, check=True
+    )
+    return wav_path
 
 def _infer_feature_config(model) -> FeatureConfig:
     feature_bins = int(model.input_shape[-1])
@@ -137,8 +145,6 @@ def _infer_feature_config(model) -> FeatureConfig:
     return FeatureConfig(include_mfcc=True, include_delta=True, include_delta2=True, include_logmel=True, include_zcr=True, normalize_per_sample=True)
 
 async def _process_audio_file(file_path: str):
-    """Core prediction logic used by both HTTP and WebSocket."""
-    _load_models()
     lw_model = _models["lightweight"]
     at_model = _models["attention"]
 
@@ -323,47 +329,58 @@ async def emotion_stream(websocket: WebSocket, token: str = None):
             pass
 
     await websocket.accept()
-    _load_models()
     try:
         while True:
-            data = await websocket.receive_bytes()
-            
-            # Use webm temp file (common format from browser MediaRecorder)
+            try:
+                data = await websocket.receive_bytes()
+            except (WebSocketDisconnect, RuntimeError):
+                break
+
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".webm")
             tmp.write(data)
             tmp.close()
-            tmp_path = tmp.name
+            webm_path = tmp.name
+            wav_path = None
 
             try:
-                emotion, confidence, all_scores, _, _ = await _process_audio_file(tmp_path)
-                
-                # Store in MongoDB
+                wav_path = _webm_to_wav(webm_path)
+                emotion, confidence, all_scores, _, _ = await _process_audio_file(wav_path)
+
                 timestamp = datetime.utcnow()
-                doc = {
+                await collection.insert_one({
                     "user_id": user_id,
                     "emotion": emotion,
                     "confidence": round(confidence, 4),
                     "all_scores": all_scores,
                     "timestamp": timestamp
-                }
-                await collection.insert_one(doc)
-
-                await websocket.send_json({
-                    "emotion": emotion,
-                    "confidence": round(confidence, 4),
-                    "all_scores": all_scores,
-                    "timestamp": timestamp.isoformat()
                 })
+
+                try:
+                    await websocket.send_json({
+                        "emotion": emotion,
+                        "confidence": round(confidence, 4),
+                        "all_scores": all_scores,
+                        "timestamp": timestamp.isoformat()
+                    })
+                except (WebSocketDisconnect, RuntimeError):
+                    break
+            except (WebSocketDisconnect, RuntimeError):
+                break
             except Exception as e:
-                print(f"[WS Error] {e}")
+                print(f"[WS processing error] {e}")
                 traceback.print_exc()
             finally:
-                try: os.unlink(tmp_path)
-                except OSError: pass
+                for p in (webm_path, wav_path):
+                    if p:
+                        try:
+                            os.unlink(p)
+                        except OSError:
+                            pass
 
-    except WebSocketDisconnect:
-        print("[WS] Client disconnected")
+    except Exception:
+        pass
+    print("[WS] Client disconnected")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=False)
